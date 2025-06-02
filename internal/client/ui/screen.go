@@ -13,12 +13,12 @@ type KeyMap struct {
 
 var keys = KeyMap{
 	Quit: key.NewBinding(
-		key.WithKeys("ctrl+c", "q"),
-		key.WithHelp("q", "quit"),
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("ctrl+c", "quit"),
 	),
 	Back: key.NewBinding(
-		key.WithKeys("esc", "b", "backspace"),
-		key.WithHelp("<-", "go back"),
+		key.WithKeys("esc"),
+		key.WithHelp("Esc", "go back"),
 	),
 }
 

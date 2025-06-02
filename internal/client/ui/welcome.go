@@ -11,7 +11,6 @@ import (
 
 type WelcomeKeyMap struct {
 	Quit  key.Binding
-	Back  key.Binding
 	Up    key.Binding
 	Down  key.Binding
 	Enter key.Binding
@@ -19,24 +18,20 @@ type WelcomeKeyMap struct {
 }
 
 func (k WelcomeKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Quit, k.Help, k.Back, k.Up, k.Down, k.Enter}
+	return []key.Binding{k.Quit, k.Help, k.Up, k.Down, k.Enter}
 }
 
 func (k WelcomeKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Quit, k.Help, k.Back, k.Up, k.Down, k.Enter},
+		{k.Quit, k.Help, k.Up, k.Down, k.Enter},
 		{},
 	}
 }
 
 var welcomeKeys = WelcomeKeyMap{
 	Quit: key.NewBinding(
-		key.WithKeys("ctrl+c", "q"),
-		key.WithHelp("ctrl+c/q", "quit"),
-	),
-	Back: key.NewBinding(
-		key.WithKeys("esc", "b", "backspace"),
-		key.WithHelp("<-/esc/b", "go back"),
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("ctrl+c", "quit"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?", "h"),
