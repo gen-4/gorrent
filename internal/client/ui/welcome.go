@@ -111,7 +111,7 @@ func (m Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Welcome) View() string {
-	title := lipgloss.JoinVertical(lipgloss.Top, Title.Render("GORRENT"))
+	title := lipgloss.JoinVertical(lipgloss.Top, TitleStyle.Render("GORRENT"))
 
 	list := ""
 	for i, model := range m.models {

@@ -7,10 +7,13 @@ const (
 	YELLOW = lipgloss.Color("#FCED77")
 )
 
-var Title = lipgloss.NewStyle().
+var TitleStyle = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(PURPLE).
 	Padding(0, 1).
 	MarginBottom(1).
 	BorderStyle(lipgloss.RoundedBorder()).
 	BorderForeground(YELLOW)
+
+var SpinnerStyle = lipgloss.NewStyle().
+	Foreground(YELLOW)

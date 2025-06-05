@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -57,6 +58,8 @@ type SearchView struct {
 	err       error
 	help      help.Model
 	keys      SearchKeyMap
+	spinner   spinner.Model
+	loading   bool
 }
 
 func SearchInitialModel() SearchView {
@@ -66,11 +69,17 @@ func SearchInitialModel() SearchView {
 	input.CharLimit = 32
 	input.Focus()
 
+	loadingSpinner := spinner.New()
+	loadingSpinner.Spinner = spinner.Dot
+	loadingSpinner.Style = SpinnerStyle
+
 	return SearchView{
 		help:      help.New(),
 		keys:      searchKeys,
 		textInput: input,
 		err:       nil,
+		spinner:   loadingSpinner,
+		loading:   false,
 	}
 }
 
@@ -80,6 +89,7 @@ func (s SearchView) Init() tea.Cmd {
 
 func (s SearchView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -89,6 +99,8 @@ func (s SearchView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, s.keys.Enter):
 			s.textInput.Blur()
+			s.loading = true
+			cmds = append(cmds, s.spinner.Tick)
 			// TODO: actually search in the superserver
 
 		case key.Matches(msg, s.keys.Edit):
@@ -96,7 +108,14 @@ func (s SearchView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				s.textInput.Blur()
 			} else {
 				s.textInput.Focus()
+				cmds = append(cmds, textinput.Blink)
 			}
+		}
+
+	case spinner.TickMsg:
+		if s.loading {
+			s.spinner, cmd = s.spinner.Update(msg)
+			cmds = append(cmds, cmd)
 		}
 
 	case error:
@@ -106,16 +125,23 @@ func (s SearchView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	s.textInput, cmd = s.textInput.Update(msg)
-	return s, cmd
+	cmds = append(cmds, cmd)
+	return s, tea.Batch(cmds...)
 }
 
 func (s SearchView) View() string {
 	helpView := s.help.View(s.keys)
-	title := Title.Render("Search for a torrent")
+	title := TitleStyle.Render("Search for a torrent")
+	spin := ""
+	if s.loading {
+		spin = lipgloss.NewStyle().MarginBottom(1).MarginLeft(1).Render(s.spinner.View())
+	}
+
 	view := lipgloss.JoinVertical(
 		lipgloss.Top,
 		title,
 		lipgloss.NewStyle().MarginBottom(1).Render(s.textInput.View()),
+		spin,
 		helpView,
 	)
 
