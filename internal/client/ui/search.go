@@ -15,16 +15,17 @@ type SearchKeyMap struct {
 	Back  key.Binding
 	Enter key.Binding
 	Help  key.Binding
+	Edit  key.Binding
 }
 
 func (k SearchKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Quit, k.Help, k.Back, k.Enter}
+	return []key.Binding{k.Quit, k.Help, k.Back, k.Edit, k.Enter}
 }
 
 func (k SearchKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Quit, k.Help, k.Back, k.Enter},
-		{},
+		{k.Edit},
 	}
 }
 
@@ -44,6 +45,10 @@ var searchKeys = SearchKeyMap{
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("Enter", "Search"),
+	),
+	Edit: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "toggle write mode"),
 	),
 }
 
@@ -81,6 +86,17 @@ func (s SearchView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, s.keys.Help):
 			s.help.ShowAll = !s.help.ShowAll
+
+		case key.Matches(msg, s.keys.Enter):
+			s.textInput.Blur()
+			// TODO: actually search in the superserver
+
+		case key.Matches(msg, s.keys.Edit):
+			if s.textInput.Focused() {
+				s.textInput.Blur()
+			} else {
+				s.textInput.Focus()
+			}
 		}
 
 	case error:
