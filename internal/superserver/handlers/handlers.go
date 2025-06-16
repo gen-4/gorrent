@@ -19,6 +19,20 @@ func readTorrentFile(path string) (string, []string) {
 	return fileName, content.Announce
 }
 
+func compareNames(a string, b string) bool {
+	matchedChars := 0
+	for _, char := range a {
+		if matchedChars >= len(b) {
+			break
+		}
+		if char == rune(b[matchedChars]) {
+			matchedChars += 1
+		}
+	}
+
+	return matchedChars == len(b)
+}
+
 func GetStoredTorrents(w http.ResponseWriter, req *http.Request) {
 	torrents := []string{}
 	if config.Configuration.TorrentsFolder == "" {
@@ -35,7 +49,7 @@ func GetStoredTorrents(w http.ResponseWriter, req *http.Request) {
 
 		if !info.IsDir() {
 			name, _ := readTorrentFile(path)
-			if strings.Contains(strings.ToLower(name), strings.ToLower(criteriaName)) {
+			if compareNames(strings.ToLower(name), strings.ToLower(criteriaName)) {
 				torrents = append(torrents, name)
 			}
 		}
