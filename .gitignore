@@ -33,3 +33,9 @@ go.work.sum
 
 # Logs
 *.log
+
+# Data folder
+data/
+
+# Configuration files
+*.json
