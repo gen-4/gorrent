@@ -23,6 +23,7 @@ func main() {
 		os.Exit(1)
 	}()
 	config.Config()
+	defer config.CloseConfig()
 
 	http.HandleFunc("/{$}", func(w http.ResponseWriter, req *http.Request) { fmt.Print("hehe") })
 	http.HandleFunc("GET /get-torrents/", handlers.GetStoredTorrents)

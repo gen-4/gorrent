@@ -2,6 +2,7 @@ package ui
 
 import (
 	"log/slog"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -9,6 +10,9 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/gen-4/gorrent/internal/client/commands"
+	"github.com/gen-4/gorrent/internal/client/models"
 )
 
 type SearchKeyMap struct {
@@ -60,6 +64,7 @@ type SearchView struct {
 	keys      SearchKeyMap
 	spinner   spinner.Model
 	loading   bool
+	torrents  []string
 }
 
 func SearchInitialModel() SearchView {
@@ -80,6 +85,7 @@ func SearchInitialModel() SearchView {
 		err:       nil,
 		spinner:   loadingSpinner,
 		loading:   false,
+		torrents:  []string{},
 	}
 }
 
@@ -100,9 +106,9 @@ func (s SearchView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, s.keys.Enter):
 			s.textInput.Blur()
 			s.loading = true
+			s.torrents = []string{}
 			cmds = append(cmds, s.spinner.Tick)
-			// TODO: actually search in the superserver
-
+			cmds = append(cmds, commands.GetSuperserverTorrents(s.textInput.Value()))
 		case key.Matches(msg, s.keys.Edit):
 			if s.textInput.Focused() {
 				s.textInput.Blur()
@@ -111,6 +117,10 @@ func (s SearchView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, textinput.Blink)
 			}
 		}
+
+	case models.SuperserverTorrents:
+		s.torrents = msg.Torrents
+		s.loading = false
 
 	case spinner.TickMsg:
 		if s.loading {
@@ -130,18 +140,19 @@ func (s SearchView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (s SearchView) View() string {
-	helpView := s.help.View(s.keys)
+	helpView := lipgloss.NewStyle().MarginTop(1).Render(s.help.View(s.keys))
 	title := TitleStyle.Render("Search for a torrent")
 	spin := ""
 	if s.loading {
-		spin = lipgloss.NewStyle().MarginBottom(1).MarginLeft(1).Render(s.spinner.View())
+		spin = lipgloss.NewStyle().MarginTop(1).MarginLeft(1).Render(s.spinner.View())
 	}
 
 	view := lipgloss.JoinVertical(
 		lipgloss.Top,
 		title,
-		lipgloss.NewStyle().MarginBottom(1).Render(s.textInput.View()),
+		lipgloss.NewStyle().Render(s.textInput.View()),
 		spin,
+		strings.Join(s.torrents, "\n"),
 		helpView,
 	)
 
