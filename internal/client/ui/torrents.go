@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 
 	"github.com/charmbracelet/bubbles/filepicker"
 	"github.com/charmbracelet/bubbles/help"
@@ -12,6 +14,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/gen-4/gorrent/internal/client/commands"
+	"github.com/gen-4/gorrent/internal/client/models"
 )
 
 type TorrentsKeyMap struct {
@@ -81,24 +84,25 @@ var torrentsKeys = TorrentsKeyMap{
 	),
 }
 
-type torrent string
-
 type Torrents struct {
 	filepicker filepicker.Model
 	picking    bool
 	err        error
 	help       help.Model
 	keys       TorrentsKeyMap
-	torrents   []torrent
+	torrents   []models.Torrent
 	table      table.Model
 }
-
-type newTorrentRequest torrent
 
 func updateTableRows(t *Torrents) {
 	rows := []table.Row{}
 	for _, torrentRow := range t.torrents {
-		rows = append(rows, table.Row{string(torrentRow)})
+		rows = append(rows, table.Row{
+			torrentRow.Name,
+			string(torrentRow.Status),
+			strconv.Itoa(torrentRow.Peers),
+			fmt.Sprintf("%d%%", torrentRow.Progress),
+		})
 	}
 	t.table.SetRows(rows)
 }
@@ -106,7 +110,10 @@ func updateTableRows(t *Torrents) {
 func TorrentsInitialModel() Torrents {
 	var err error
 	tableHeaders := []table.Column{
-		{Title: "Name", Width: 10},
+		{Title: "Name", Width: 20},
+		{Title: "Status", Width: 12},
+		{Title: "Peers", Width: 5},
+		{Title: "Progress", Width: 15},
 	}
 	torrentsTable := table.New(
 		table.WithColumns(tableHeaders),
@@ -132,7 +139,7 @@ func TorrentsInitialModel() Torrents {
 		help:       help.New(),
 		keys:       torrentsKeys,
 		err:        nil,
-		torrents:   []torrent{"x", "d", "j"},
+		torrents:   []models.Torrent{{"x", 2, 20, models.STOPPED}, {"d", 0, 100, models.SEEDING}, {"y", 3, 40, models.DOWNLOADED}},
 		table:      torrentsTable,
 	}
 	updateTableRows(&model)
@@ -166,8 +173,8 @@ func (t Torrents) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 
-	case newTorrentRequest:
-		t.torrents = append(t.torrents, torrent(msg))
+	case models.NewTorrentRequest:
+		t.torrents = append(t.torrents, models.Torrent(msg))
 		updateTableRows(&t)
 
 	case error:
@@ -180,7 +187,12 @@ func (t Torrents) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.filepicker, cmd = t.filepicker.Update(msg)
 		cmds = append(cmds, cmd)
 		if didSelect, path := t.filepicker.DidSelectFile(msg); didSelect {
-			cmds = append(cmds, commands.SendMessageCmd(newTorrentRequest(path)))
+			cmds = append(cmds, commands.SendMessageCmd(models.NewTorrentRequest{
+				Name:     path,
+				Peers:    0,
+				Progress: 0,
+				Status:   models.STOPPED,
+			}))
 			t.picking = false
 		}
 	}
