@@ -117,7 +117,7 @@ func (m Welcome) View() string {
 	for i, model := range m.models {
 		row := model.name
 		if int8(i) == m.cursor {
-			row = lipgloss.NewStyle().Background(PURPLE).Render(model.name)
+			row = lipgloss.NewStyle().Background(PRIMARY).Render(model.name)
 		}
 
 		list += fmt.Sprintf("%s\n", row)
