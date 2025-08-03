@@ -28,7 +28,7 @@ var Configuration SuperserverConfig = SuperserverConfig{
 	LogFile:                "gorrent.log",
 	Superservers:           []string{},
 	Env:                    "",
-	SuperserverUrlTemplate: "%s://%s:%s/%s",
+	SuperserverUrlTemplate: "%s://%s:%s/gorrent/%s",
 }
 
 var fileDescriptor *os.File

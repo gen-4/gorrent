@@ -44,6 +44,7 @@ func GetStoredTorrents(w http.ResponseWriter, req *http.Request) {
 
 	err := filepath.Walk(config.Configuration.TorrentsFolder, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			slog.Error("Error reading file info", "error", err.Error())
 			return err
 		}
 
