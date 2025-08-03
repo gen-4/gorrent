@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -10,11 +11,31 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	DEV  = "dev"
+	TEST = "test"
+	PRO  = "pro"
+)
+
+type SuperserverConfig struct {
+	LogFile                string   `json:"log_file"`
+	Superservers           []string `json:"superservers"`
+	Env                    string
+	SuperserverUrlTemplate string
+}
+
+var Configuration SuperserverConfig = SuperserverConfig{
+	LogFile:                "gorrent.log",
+	Superservers:           []string{},
+	Env:                    "",
+	SuperserverUrlTemplate: "%s://%s:%s/gorrent/%s",
+}
+
 var fileDescriptor *os.File
 
 func getEnv() string {
 	var err error
-	environment := "dev"
+	environment := DEV
 
 	if flag.Lookup("test.v") == nil {
 		err = godotenv.Load()
@@ -34,9 +55,24 @@ func getEnv() string {
 	return environment
 }
 
+func loadFromConfigFile() {
+	content, err := os.ReadFile("gorrent_conf.json")
+	if err != nil {
+		slog.Error("Unable to read config file", "error", err.Error())
+		return
+	}
+
+	if err = json.Unmarshal(content, &Configuration); err != nil {
+		slog.Error("Unable to unmarshal config", "error", err.Error())
+		return
+	}
+}
+
 func Config() {
 	var environment string = getEnv()
-	logFile := os.Getenv("LOG_FILE")
+	Configuration.Env = environment
+	loadFromConfigFile()
+	logFile := Configuration.LogFile
 	f, err := tea.LogToFile(logFile, "debug")
 	if err != nil {
 		slog.Error("Error opening log file", "error", err.Error())
@@ -48,21 +84,24 @@ func Config() {
 	slog.SetDefault(logger)
 
 	switch environment {
-	case "dev":
+	case DEV:
 		logger := slog.New(slog.NewJSONHandler(fileDescriptor, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
 		}))
 		slog.SetDefault(logger)
+		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "8000", "%s")
 
-	case "test":
+	case TEST:
 		logger := slog.New(slog.NewJSONHandler(fileDescriptor, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
 		}))
 		slog.SetDefault(logger)
+		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "8000", "%s")
 
-	case "pro":
+	case PRO:
 		logger := slog.New(slog.NewJSONHandler(fileDescriptor, nil))
 		slog.SetDefault(logger)
+		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "80", "%s")
 	}
 
 	slog.Info(fmt.Sprintf("Running in %s environment", environment))

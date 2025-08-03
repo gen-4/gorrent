@@ -19,10 +19,24 @@ func readTorrentFile(path string) (string, []string) {
 	return fileName, content.Announce
 }
 
+func namesMatch(a string, b string) bool {
+	matchedChars := 0
+	for _, char := range a {
+		if matchedChars >= len(b) {
+			break
+		}
+		if char == rune(b[matchedChars]) {
+			matchedChars += 1
+		}
+	}
+
+	return matchedChars == len(b)
+}
+
 func GetStoredTorrents(w http.ResponseWriter, req *http.Request) {
 	torrents := []string{}
 	if config.Configuration.TorrentsFolder == "" {
-		slog.Info("Torrents folder is not configured")
+		slog.Warn("Torrents folder is not configured")
 		return
 	}
 
@@ -30,12 +44,13 @@ func GetStoredTorrents(w http.ResponseWriter, req *http.Request) {
 
 	err := filepath.Walk(config.Configuration.TorrentsFolder, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			slog.Error("Error reading file info", "error", err.Error())
 			return err
 		}
 
 		if !info.IsDir() {
 			name, _ := readTorrentFile(path)
-			if strings.Contains(strings.ToLower(name), strings.ToLower(criteriaName)) {
+			if namesMatch(strings.ToLower(name), strings.ToLower(criteriaName)) {
 				torrents = append(torrents, name)
 			}
 		}
