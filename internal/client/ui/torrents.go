@@ -100,7 +100,7 @@ func updateTableRows(t *Torrents) {
 		rows = append(rows, table.Row{
 			torrentRow.Name,
 			string(torrentRow.Status),
-			strconv.Itoa(torrentRow.Peers),
+			strconv.Itoa(int(torrentRow.Peers)),
 			fmt.Sprintf("%d%%", torrentRow.Progress),
 		})
 	}
@@ -139,7 +139,7 @@ func TorrentsInitialModel() Torrents {
 		help:       help.New(),
 		keys:       torrentsKeys,
 		err:        nil,
-		torrents:   []models.Torrent{{"x", 2, 20, models.STOPPED}, {"d", 0, 100, models.SEEDING}, {"y", 3, 40, models.DOWNLOADED}},
+		torrents:   []models.Torrent{},
 		table:      torrentsTable,
 	}
 	updateTableRows(&model)
@@ -187,12 +187,7 @@ func (t Torrents) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.filepicker, cmd = t.filepicker.Update(msg)
 		cmds = append(cmds, cmd)
 		if didSelect, path := t.filepicker.DidSelectFile(msg); didSelect {
-			cmds = append(cmds, commands.SendMessageCmd(models.NewTorrentRequest{
-				Name:     path,
-				Peers:    0,
-				Progress: 0,
-				Status:   models.STOPPED,
-			}))
+			cmds = append(cmds, commands.CreateTorrent(path))
 			t.picking = false
 		}
 	}
