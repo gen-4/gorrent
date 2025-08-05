@@ -110,7 +110,7 @@ func updateTableRows(t *Torrents) {
 func TorrentsInitialModel() Torrents {
 	var err error
 	tableHeaders := []table.Column{
-		{Title: "Name", Width: 20},
+		{Title: "Name", Width: 40},
 		{Title: "Status", Width: 12},
 		{Title: "Peers", Width: 5},
 		{Title: "Progress", Width: 15},
@@ -133,13 +133,16 @@ func TorrentsInitialModel() Torrents {
 		slog.Error("Error setting filepicker current directory", "error", err.Error())
 	}
 
+	var torrents []models.Torrent = commands.GetTorrentsData()
+	slog.Debug(fmt.Sprintf("%s", torrents))
+
 	model := Torrents{
 		filepicker: fp,
 		picking:    false,
 		help:       help.New(),
 		keys:       torrentsKeys,
 		err:        nil,
-		torrents:   []models.Torrent{},
+		torrents:   torrents,
 		table:      torrentsTable,
 	}
 	updateTableRows(&model)

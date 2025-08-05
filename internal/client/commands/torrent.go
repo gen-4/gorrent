@@ -29,14 +29,19 @@ func openTorrentsFile(mode mode) (*os.File, error) {
 		permissions = 0400
 
 	} else if mode == READ_WRITE {
-		flags = os.O_APPEND | os.O_RDWR | os.O_CREATE
+		flags = os.O_RDWR | os.O_CREATE
 		permissions = 0600
 
 	} else {
+		slog.Error("Invalid file mode provided")
 		return nil, errors.New("Invalid file mode provided")
 	}
 
-	return os.OpenFile("torrents.json", flags, permissions)
+	f, err := os.OpenFile("torrents.json", flags, permissions)
+	if err != nil {
+		slog.Error("Error opening torrents file", "error", err.Error())
+	}
+	return f, err
 }
 
 func readTorrentFile(path string) (string, uint64, []string, error) {
@@ -53,7 +58,6 @@ func CreateTorrent(path string) tea.Cmd {
 	return func() tea.Msg {
 		f, err := openTorrentsFile(READ_WRITE)
 		if err != nil {
-			slog.Error("Unable to open torrents file", "errors", err.Error())
 			return err
 		}
 		defer f.Close()
@@ -69,9 +73,10 @@ func CreateTorrent(path string) tea.Cmd {
 			slog.Error("Error reading torrents file stats", "error", err.Error())
 			return err
 		}
+		isTorrentsFileEmpty := stat.Size() == 0
 
 		torrentsData := map[string]any{}
-		if stat.Size() != 0 {
+		if !isTorrentsFileEmpty {
 			jsonData := make([]byte, stat.Size())
 			_, err := f.Read(jsonData)
 			if err != nil {
@@ -80,6 +85,15 @@ func CreateTorrent(path string) tea.Cmd {
 			}
 			if err := json.Unmarshal(jsonData, &torrentsData); err != nil {
 				slog.Error("Error unmarshaling torrents file", "error", err.Error())
+				return err
+			}
+
+			if _, err := f.Seek(-2, 2); err != nil {
+				slog.Error("Error setting file offset", "error", err.Error())
+				return err
+			}
+			if _, err := f.WriteString(",\n"); err != nil {
+				slog.Error("Unable to write torrents file", "error", err.Error())
 				return err
 			}
 		}
@@ -92,32 +106,103 @@ func CreateTorrent(path string) tea.Cmd {
 
 		// TODO: Calculate chunks and chunk length, which is basically the same
 
-		torrentsData[file] = map[string]any{
-			"download_directory": "~/Downloads/",
-			"length":             length,
-			"chunks":             1,
-			"chunks_downloaded":  0,
+		tData := map[string]any{
+			file: map[string]any{
+				"download_directory": "~/Downloads/",
+				"length":             length,
+				"chunks":             1,
+				"chunk_length":       0,
+				"chunks_downloaded":  []int{},
+			},
 		}
 
-		byteTData, err := json.Marshal(torrentsData)
+		byteTData, err := json.Marshal(tData)
 		if err != nil {
 			slog.Error("Unable to marshal torrent data", "error", err.Error())
 			return err
 		}
 
-		if _, err = f.WriteString(string(byteTData)); err != nil {
-			slog.Error("Unable to write torrents file", "errors", err.Error())
+		if !isTorrentsFileEmpty {
+			byteTData = byteTData[1:]
+		}
+
+		if _, err = f.Write(byteTData); err != nil {
+			slog.Error("Unable to write torrents file", "error", err.Error())
 			return err
 		}
 
 		return models.NewTorrentRequest{
-			Name:         file,
-			Peers:        uint8(0),
-			Progress:     uint8(0),
-			Status:       models.STOPPED,
-			Superservers: superservers,
-			ChunkLength:  length,
-			Length:       length,
+			Name:             file,
+			Peers:            uint8(0),
+			Progress:         uint8(0),
+			Status:           models.STOPPED,
+			Superservers:     superservers,
+			ChunkLength:      length,
+			ChunksDownloaded: []uint8{},
+			Length:           length,
+			DownloadDir:      "~/Downloads/",
 		}
 	}
+}
+
+func GetTorrentsData() []models.Torrent {
+	var torrents []models.Torrent = []models.Torrent{}
+	torrentsData := map[string]any{}
+
+	f, _ := openTorrentsFile(READ)
+	stat, err := f.Stat()
+	if err != nil {
+		slog.Error("Error reading torrents file stats", "error", err.Error())
+		return torrents
+	}
+
+	if stat.Size() != 0 {
+		jsonData := make([]byte, stat.Size())
+		if _, err := f.Read(jsonData); err != nil {
+			slog.Error("Unable to read torrents file", "erro", err.Error())
+		}
+
+		json.Unmarshal(jsonData, &torrentsData)
+	}
+
+	// TODO: I will have to calculate status based on chunks and downloaded chunks
+
+	for file, torrentData := range torrentsData {
+		var peers uint8 = 0
+		var progress uint8 = 0
+		var status models.Status = models.STOPPED
+		var superservers []string = []string{}
+		var chunkLength uint64 = 0
+		var length uint64 = 0
+		var chunksDownloaded []uint8 = []uint8{}
+		var downloadDir string = "~/Downloads/"
+
+		tData := torrentData.(map[string]any)
+		if v, found := tData["download_directory"]; found {
+			downloadDir = v.(string)
+		}
+		if v, found := tData["chunk_length"]; found {
+			chunkLength = uint64(v.(float64))
+		}
+		if v, found := tData["chunks_donwloaded"]; found {
+			chunksDownloaded = v.([]uint8)
+		}
+		if v, found := tData["length"]; found {
+			length = uint64(v.(float64))
+		}
+
+		torrents = append(torrents, models.Torrent{
+			Name:             file,
+			Peers:            peers,
+			Progress:         progress,
+			Status:           status,
+			Superservers:     superservers,
+			ChunkLength:      chunkLength,
+			Length:           length,
+			DownloadDir:      downloadDir,
+			ChunksDownloaded: chunksDownloaded,
+		})
+	}
+
+	return torrents
 }
