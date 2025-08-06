@@ -54,6 +54,17 @@ func readTorrentFile(path string) (string, uint64, []string, error) {
 	return content.Files[0].Path[1], uint64(content.Files[0].Length), content.Announce, nil
 }
 
+func calculateChunkLength(length uint64) uint64 {
+	lengths := []uint16{512, 1024, 2048, 4096}
+	for l := range lengths {
+		if int(length)/l > 500 && int(length)/l < 2000 {
+			return uint64(l)
+		}
+	}
+
+	return uint64(2048)
+}
+
 func CreateTorrent(path string) tea.Cmd {
 	return func() tea.Msg {
 		f, err := openTorrentsFile(READ_WRITE)
@@ -104,14 +115,13 @@ func CreateTorrent(path string) tea.Cmd {
 			return nil
 		}
 
-		// TODO: Calculate chunks and chunk length, which is basically the same
+		var chunkLength uint64 = calculateChunkLength(length)
 
 		tData := map[string]any{
 			file: map[string]any{
 				"download_directory": "~/Downloads/",
 				"length":             length,
-				"chunks":             1,
-				"chunk_length":       0,
+				"chunk_length":       chunkLength,
 				"chunks_downloaded":  []int{},
 			},
 		}
@@ -137,7 +147,7 @@ func CreateTorrent(path string) tea.Cmd {
 			Progress:         uint8(0),
 			Status:           models.STOPPED,
 			Superservers:     superservers,
-			ChunkLength:      length,
+			ChunkLength:      chunkLength,
 			ChunksDownloaded: []uint8{},
 			Length:           length,
 			DownloadDir:      "~/Downloads/",
@@ -165,8 +175,6 @@ func GetTorrentsData() []models.Torrent {
 		json.Unmarshal(jsonData, &torrentsData)
 	}
 
-	// TODO: I will have to calculate status based on chunks and downloaded chunks
-
 	for file, torrentData := range torrentsData {
 		var peers uint8 = 0
 		var progress uint8 = 0
@@ -189,6 +197,14 @@ func GetTorrentsData() []models.Torrent {
 		}
 		if v, found := tData["length"]; found {
 			length = uint64(v.(float64))
+		}
+
+		chunks := length / chunkLength
+		if length%chunkLength != 0 {
+			chunks += 1
+		}
+		if len(chunksDownloaded) == int(chunks) {
+			status = models.DOWNLOADED
 		}
 
 		torrents = append(torrents, models.Torrent{
