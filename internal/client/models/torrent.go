@@ -10,8 +10,13 @@ const (
 )
 
 type Torrent struct {
-	Name     string
-	Peers    int
-	Progress int
-	Status   Status
+	Name             string
+	Peers            uint8
+	Progress         uint8
+	Status           Status
+	Superservers     []string
+	ChunkLength      uint64
+	Length           uint64
+	DownloadDir      string
+	ChunksDownloaded []uint8
 }

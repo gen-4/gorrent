@@ -17,14 +17,14 @@ const (
 	PRO  = "pro"
 )
 
-type SuperserverConfig struct {
+type ClientConfig struct {
 	LogFile                string   `json:"log_file"`
 	Superservers           []string `json:"superservers"`
 	Env                    string
 	SuperserverUrlTemplate string
 }
 
-var Configuration SuperserverConfig = SuperserverConfig{
+var Configuration ClientConfig = ClientConfig{
 	LogFile:                "gorrent.log",
 	Superservers:           []string{},
 	Env:                    "",
