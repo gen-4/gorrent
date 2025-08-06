@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"reflect"
 
 	tea "github.com/charmbracelet/bubbletea"
 	parser "github.com/j-muller/go-torrent-parser"
@@ -192,8 +193,14 @@ func GetTorrentsData() []models.Torrent {
 		if v, found := tData["chunk_length"]; found {
 			chunkLength = uint64(v.(float64))
 		}
-		if v, found := tData["chunks_donwloaded"]; found {
-			chunksDownloaded = v.([]uint8)
+		if v, found := tData["chunks_downloaded"]; found {
+			cDownloadedAny, ok := v.([]any)
+			if !ok {
+				slog.Error("Wrong type assertion, expected []any", "type", reflect.TypeOf(cDownloadedAny))
+			}
+			for _, ch := range cDownloadedAny {
+				chunksDownloaded = append(chunksDownloaded, uint8(ch.(float64)))
+			}
 		}
 		if v, found := tData["length"]; found {
 			length = uint64(v.(float64))

@@ -21,7 +21,7 @@ func GetSuperserverTorrents(torrentName string) tea.Cmd {
 			response, err := http.Get(fmt.Sprintf(
 				config.Configuration.SuperserverUrlTemplate,
 				superserver,
-				fmt.Sprintf("get-torrents?name=%s", torrentName),
+				fmt.Sprintf("torrents?name=%s", torrentName),
 			))
 			if err != nil {
 				slog.Error("Error requesting superserver torrents", "superserver", superserver, "error", err.Error())

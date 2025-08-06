@@ -134,7 +134,6 @@ func TorrentsInitialModel() Torrents {
 	}
 
 	var torrents []models.Torrent = commands.GetTorrentsData()
-	slog.Debug(fmt.Sprintf("%s", torrents))
 
 	model := Torrents{
 		filepicker: fp,
