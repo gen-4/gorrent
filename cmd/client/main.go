@@ -17,16 +17,25 @@ import (
 func main() {
 	config.Config()
 	defer config.CloseConfig()
+
+	for _, ss := range config.Configuration.Superservers {
+		// TODO: Port will have to be set according to environment
+		if _, err := http.Post(fmt.Sprintf(config.Configuration.SuperserverUrlTemplate, ss, "peer/"), "", nil); err != nil {
+			slog.Error("Error subscribing to superserver", "superserver", ss, "error", err.Error())
+		}
+	}
+
 	mux := http.NewServeMux()
 	gorrentMux := http.NewServeMux()
 	gorrentMux.HandleFunc("/{$}", func(w http.ResponseWriter, req *http.Request) { fmt.Print("root hehe\n") })
 	gorrentMux.HandleFunc("/healthcheck", func(w http.ResponseWriter, req *http.Request) { fmt.Print("hehe\n") })
 	gorrentMux.HandleFunc("GET /torrent/", handlers.HasTorrent)
+	gorrentMux.HandleFunc("GET /torrent", handlers.HasTorrent)
 	mux.Handle("/gorrent/", http.StripPrefix("/gorrent", gorrentMux))
 	appliedMiddlewareRouter := middleware.LoggingMiddleware(mux)
 
 	server := &http.Server{
-		Addr:    "localhost:8080",
+		Addr:    "localhost:5050",
 		Handler: appliedMiddlewareRouter,
 	}
 

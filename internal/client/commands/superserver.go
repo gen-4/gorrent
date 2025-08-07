@@ -43,3 +43,26 @@ func GetSuperserverTorrents(torrentName string) tea.Cmd {
 		return models.SuperserverTorrents{Torrents: torrents}
 	}
 }
+
+func GetPeersWithFile(torrentName string) tea.Cmd {
+	return func() tea.Msg {
+		peers := models.PeersFound{}
+		var peersRes models.GetPeersDto
+		var data []byte
+
+		for _, ss := range config.Configuration.Superservers {
+			response, err := http.Get(fmt.Sprintf(config.Configuration.SuperserverUrlTemplate, ss, fmt.Sprintf("torrent/?file=%s", torrentName)))
+			if err != nil {
+				slog.Error("Error asking for torrent", "superserver", ss, "torrent", torrentName)
+			}
+
+			if _, err := response.Body.Read(data); err != nil {
+				slog.Error("Error reading response body", "error", err.Error())
+			}
+			json.Unmarshal(data, &peersRes)
+			peers = append(peers, peersRes.Peers...)
+		}
+
+		return peers
+	}
+}

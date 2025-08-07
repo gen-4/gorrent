@@ -5,3 +5,5 @@ type SuperserverTorrents struct {
 }
 
 type NewTorrentRequest Torrent
+
+type PeersFound []string

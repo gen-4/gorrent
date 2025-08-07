@@ -2,22 +2,17 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-
-	parser "github.com/j-muller/go-torrent-parser"
+	"sync"
 
 	config "github.com/gen-4/gorrent/config/superserver"
+	gUtils "github.com/gen-4/gorrent/internal/utils"
 )
-
-func readTorrentFile(path string) (string, []string) {
-	content, _ := parser.ParseFromFile(path)
-	fileName := content.Files[0].Path[0]
-	return fileName, content.Announce
-}
 
 func namesMatch(a string, b string) bool {
 	matchedChars := 0
@@ -49,7 +44,11 @@ func GetStoredTorrents(w http.ResponseWriter, req *http.Request) {
 		}
 
 		if !info.IsDir() {
-			name, _ := readTorrentFile(path)
+			name, _, _, err := gUtils.ReadTorrentFile(path)
+			if err != nil {
+				slog.Error("Unable to read .torrent file", "error", err.Error())
+				return err
+			}
 			if namesMatch(strings.ToLower(name), strings.ToLower(criteriaName)) {
 				torrents = append(torrents, name)
 			}
@@ -67,4 +66,56 @@ func GetStoredTorrents(w http.ResponseWriter, req *http.Request) {
 		"torrents": torrents,
 	}
 	json.NewEncoder(w).Encode(data)
+}
+
+func SubscribePeer(w http.ResponseWriter, req *http.Request) {
+	addr := strings.Split(req.RemoteAddr, ":")[0]
+	for _, p := range config.Configuration.Peers {
+		if p == addr {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	config.Configuration.Peers = append(config.Configuration.Peers, addr)
+	slog.Info("New Peer subscribed", "peer", addr)
+	w.WriteHeader(http.StatusOK)
+}
+
+func GetPeersWithFile(w http.ResponseWriter, req *http.Request) {
+	var wg sync.WaitGroup
+	peersWithFile := []string{}
+	file := req.URL.Query().Get("file")
+
+	wg.Add(len(config.Configuration.Peers))
+	slog.Debug("Added", "wg", len(config.Configuration.Peers))
+
+	for _, peer := range config.Configuration.Peers {
+		go func() {
+			defer wg.Done()
+
+			if config.Configuration.Environment == config.PRO && peer == strings.Split(req.RemoteAddr, ":")[0] {
+				return
+			}
+
+			response, err := http.Get(fmt.Sprintf(config.Configuration.PeerUrlTemplate, peer, fmt.Sprintf("torrent/?file=%s", file)))
+			if err != nil {
+				return
+			}
+
+			if response.StatusCode == http.StatusOK {
+				peersWithFile = append(peersWithFile, peer)
+			}
+
+		}()
+	}
+
+	wg.Wait()
+
+	w.Header().Add("Content-Type", "application/json")
+	data := map[string]any{
+		"peers": peersWithFile,
+	}
+	json.NewEncoder(w).Encode(data)
+
 }

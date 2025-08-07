@@ -9,6 +9,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/joho/godotenv"
+
+	"github.com/gen-4/gorrent/internal/client/models"
+	"github.com/gen-4/gorrent/internal/client/utils"
 )
 
 const (
@@ -22,6 +25,7 @@ type ClientConfig struct {
 	Superservers           []string `json:"superservers"`
 	Env                    string
 	SuperserverUrlTemplate string
+	Torrents               []models.Torrent
 }
 
 var Configuration ClientConfig = ClientConfig{
@@ -29,6 +33,7 @@ var Configuration ClientConfig = ClientConfig{
 	Superservers:           []string{},
 	Env:                    "",
 	SuperserverUrlTemplate: "%s://%s:%s/gorrent/%s",
+	Torrents:               []models.Torrent{},
 }
 
 var fileDescriptor *os.File
@@ -104,6 +109,7 @@ func Config() {
 		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "80", "%s")
 	}
 
+	Configuration.Torrents = utils.GetTorrentsData()
 	slog.Info(fmt.Sprintf("Running in %s environment", environment))
 }
 
