@@ -32,9 +32,14 @@ func main() {
 	gorrentMux.HandleFunc("/healthcheck", func(w http.ResponseWriter, req *http.Request) { fmt.Print("hehe\n") })
 	gorrentMux.HandleFunc("GET /torrents/", handlers.GetStoredTorrents)
 	gorrentMux.HandleFunc("GET /torrents", handlers.GetStoredTorrents)
+	gorrentMux.HandleFunc("POST /peer/", handlers.SubscribePeer)
+	gorrentMux.HandleFunc("POST /peer", handlers.SubscribePeer)
+	gorrentMux.HandleFunc("GET /torrent/", handlers.GetPeersWithFile)
+	gorrentMux.HandleFunc("GET /torrent", handlers.GetPeersWithFile)
 	mux.Handle("/gorrent/", http.StripPrefix("/gorrent", gorrentMux))
 	appliedMiddlewareRouter := middleware.LoggingMiddleware(mux)
 
+	slog.Info("Starting HTTP server")
 	err := http.ListenAndServe("localhost:8000", appliedMiddlewareRouter)
 	if errors.Is(err, http.ErrServerClosed) {
 		fmt.Print("Server closed\n")

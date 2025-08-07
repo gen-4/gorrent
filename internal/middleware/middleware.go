@@ -19,6 +19,7 @@ func (r *statusRecorder) WriteHeader(statusCode int) {
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slog.Info(fmt.Sprintf("[%s] %s %s %s", strings.Split(r.RemoteAddr, ":")[0], r.Method, r.URL, r.UserAgent()))
 		recorder := &statusRecorder{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(recorder, r)
 		slog.Info(fmt.Sprintf("[%s] %s %s %d %s", strings.Split(r.RemoteAddr, ":")[0], r.Method, r.URL, recorder.statusCode, r.UserAgent()))

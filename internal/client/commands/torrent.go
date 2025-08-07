@@ -2,63 +2,25 @@ package commands
 
 import (
 	"encoding/json"
-	"errors"
-	"io/fs"
+	"fmt"
 	"log/slog"
-	"os"
-	"reflect"
 
 	tea "github.com/charmbracelet/bubbletea"
-	parser "github.com/j-muller/go-torrent-parser"
 
 	"github.com/gen-4/gorrent/internal/client/models"
+	"github.com/gen-4/gorrent/internal/client/utils"
+	gUtils "github.com/gen-4/gorrent/internal/utils"
 )
-
-type mode string
-
-const (
-	READ       mode = "read"
-	READ_WRITE      = "read_write"
-)
-
-func openTorrentsFile(mode mode) (*os.File, error) {
-	var flags int
-	var permissions fs.FileMode
-
-	if mode == READ {
-		flags = os.O_RDONLY | os.O_CREATE
-		permissions = 0400
-
-	} else if mode == READ_WRITE {
-		flags = os.O_RDWR | os.O_CREATE
-		permissions = 0600
-
-	} else {
-		slog.Error("Invalid file mode provided")
-		return nil, errors.New("Invalid file mode provided")
-	}
-
-	f, err := os.OpenFile("torrents.json", flags, permissions)
-	if err != nil {
-		slog.Error("Error opening torrents file", "error", err.Error())
-	}
-	return f, err
-}
-
-func readTorrentFile(path string) (string, uint64, []string, error) {
-	content, err := parser.ParseFromFile(path)
-	if err != nil {
-		slog.Error("Unable to read .torrent file", "error", err.Error())
-		return "", 0, []string{}, err
-	}
-
-	return content.Files[0].Path[1], uint64(content.Files[0].Length), content.Announce, nil
-}
 
 func calculateChunkLength(length uint64) uint64 {
 	lengths := []uint16{512, 1024, 2048, 4096}
-	for l := range lengths {
-		if int(length)/l > 500 && int(length)/l < 2000 {
+	for _, l := range lengths {
+		if l == 0 {
+			slog.Error(fmt.Sprintf("Division by zero. %d in %s list", l, lengths))
+			continue
+		}
+		nChunks := length / uint64(l)
+		if nChunks > 500 && nChunks < 2000 {
 			return uint64(l)
 		}
 	}
@@ -68,13 +30,13 @@ func calculateChunkLength(length uint64) uint64 {
 
 func CreateTorrent(path string) tea.Cmd {
 	return func() tea.Msg {
-		f, err := openTorrentsFile(READ_WRITE)
+		f, err := utils.OpenTorrentsFile(utils.READ_WRITE)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
 
-		file, length, superservers, err := readTorrentFile(path)
+		file, length, superservers, err := gUtils.ReadTorrentFile(path)
 		if err != nil {
 			slog.Error("Unable to read .torrent file", "errors", err.Error())
 			return err
@@ -154,78 +116,4 @@ func CreateTorrent(path string) tea.Cmd {
 			DownloadDir:      "~/Downloads/",
 		}
 	}
-}
-
-func GetTorrentsData() []models.Torrent {
-	var torrents []models.Torrent = []models.Torrent{}
-	torrentsData := map[string]any{}
-
-	f, _ := openTorrentsFile(READ)
-	stat, err := f.Stat()
-	if err != nil {
-		slog.Error("Error reading torrents file stats", "error", err.Error())
-		return torrents
-	}
-
-	if stat.Size() != 0 {
-		jsonData := make([]byte, stat.Size())
-		if _, err := f.Read(jsonData); err != nil {
-			slog.Error("Unable to read torrents file", "erro", err.Error())
-		}
-
-		json.Unmarshal(jsonData, &torrentsData)
-	}
-
-	for file, torrentData := range torrentsData {
-		var peers uint8 = 0
-		var progress uint8 = 0
-		var status models.Status = models.STOPPED
-		var superservers []string = []string{}
-		var chunkLength uint64 = 0
-		var length uint64 = 0
-		var chunksDownloaded []uint8 = []uint8{}
-		var downloadDir string = "~/Downloads/"
-
-		tData := torrentData.(map[string]any)
-		if v, found := tData["download_directory"]; found {
-			downloadDir = v.(string)
-		}
-		if v, found := tData["chunk_length"]; found {
-			chunkLength = uint64(v.(float64))
-		}
-		if v, found := tData["chunks_downloaded"]; found {
-			cDownloadedAny, ok := v.([]any)
-			if !ok {
-				slog.Error("Wrong type assertion, expected []any", "type", reflect.TypeOf(cDownloadedAny))
-			}
-			for _, ch := range cDownloadedAny {
-				chunksDownloaded = append(chunksDownloaded, uint8(ch.(float64)))
-			}
-		}
-		if v, found := tData["length"]; found {
-			length = uint64(v.(float64))
-		}
-
-		chunks := length / chunkLength
-		if length%chunkLength != 0 {
-			chunks += 1
-		}
-		if len(chunksDownloaded) == int(chunks) {
-			status = models.DOWNLOADED
-		}
-
-		torrents = append(torrents, models.Torrent{
-			Name:             file,
-			Peers:            peers,
-			Progress:         progress,
-			Status:           status,
-			Superservers:     superservers,
-			ChunkLength:      chunkLength,
-			Length:           length,
-			DownloadDir:      downloadDir,
-			ChunksDownloaded: chunksDownloaded,
-		})
-	}
-
-	return torrents
 }

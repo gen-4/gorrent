@@ -17,13 +17,19 @@ const (
 )
 
 type SuperserverConfig struct {
-	TorrentsFolder string `json:"torrents_folder"`
-	LogFile        string `json:"log_file"`
+	TorrentsFolder  string `json:"torrents_folder"`
+	LogFile         string `json:"log_file"`
+	Peers           []string
+	Environment     string
+	PeerUrlTemplate string
 }
 
 var Configuration SuperserverConfig = SuperserverConfig{
-	TorrentsFolder: "",
-	LogFile:        "server.log",
+	TorrentsFolder:  "",
+	LogFile:         "server.log",
+	Peers:           []string{},
+	Environment:     PRO,
+	PeerUrlTemplate: "%s://%s:%s/gorrent/%s",
 }
 
 var fileDescriptor *os.File
@@ -66,6 +72,7 @@ func loadFromConfigFile() {
 func Config() {
 	loadFromConfigFile()
 	var environment string = getEnv()
+	Configuration.Environment = environment
 	f, err := os.OpenFile(Configuration.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		slog.Error("Error opening log file", "error", err.Error())
@@ -82,6 +89,7 @@ func Config() {
 		}))
 		slog.SetDefault(logger)
 		f.Close()
+		Configuration.PeerUrlTemplate = fmt.Sprintf(Configuration.PeerUrlTemplate, "http", "%s", "5050", "%s")
 
 	case TEST:
 		logger := slog.New(slog.NewJSONHandler(fileDescriptor, &slog.HandlerOptions{
@@ -89,11 +97,13 @@ func Config() {
 		}))
 		slog.SetDefault(logger)
 		fileDescriptor = f
+		Configuration.PeerUrlTemplate = fmt.Sprintf(Configuration.PeerUrlTemplate, "http", "%s", "5050", "%s")
 
 	case PRO:
 		logger := slog.New(slog.NewJSONHandler(fileDescriptor, nil))
 		slog.SetDefault(logger)
 		fileDescriptor = f
+		Configuration.PeerUrlTemplate = fmt.Sprintf(Configuration.PeerUrlTemplate, "http", "%s", "5050", "%s")
 	}
 
 	slog.Info(fmt.Sprintf("Running in %s environment", environment))

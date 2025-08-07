@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/gen-4/gorrent/config/client"
 	"github.com/gen-4/gorrent/internal/client/commands"
 	"github.com/gen-4/gorrent/internal/client/models"
 )
@@ -133,7 +134,7 @@ func TorrentsInitialModel() Torrents {
 		slog.Error("Error setting filepicker current directory", "error", err.Error())
 	}
 
-	var torrents []models.Torrent = commands.GetTorrentsData()
+	var torrents []models.Torrent = config.Configuration.Torrents
 
 	model := Torrents{
 		filepicker: fp,
