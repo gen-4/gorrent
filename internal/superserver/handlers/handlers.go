@@ -88,7 +88,6 @@ func GetPeersWithFile(w http.ResponseWriter, req *http.Request) {
 	file := req.URL.Query().Get("file")
 
 	wg.Add(len(config.Configuration.Peers))
-	slog.Debug("Added", "wg", len(config.Configuration.Peers))
 
 	for _, peer := range config.Configuration.Peers {
 		go func() {
