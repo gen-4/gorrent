@@ -30,7 +30,7 @@ func calculateChunkLength(length uint64) uint64 {
 
 func CreateTorrent(path string) tea.Cmd {
 	return func() tea.Msg {
-		f, err := utils.OpenTorrentsFile(utils.READ_WRITE)
+		f, err := utils.OpenFile(utils.READ_WRITE, "torrents.json")
 		if err != nil {
 			return err
 		}

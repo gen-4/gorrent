@@ -42,6 +42,8 @@ func main() {
 	gorrentMux.HandleFunc("/healthcheck", func(w http.ResponseWriter, req *http.Request) { fmt.Print("hehe\n") })
 	gorrentMux.HandleFunc("GET /torrent/", handlers.HasTorrent)
 	gorrentMux.HandleFunc("GET /torrent", handlers.HasTorrent)
+	gorrentMux.HandleFunc("GET /chunk/", handlers.DownloadChunk)
+	gorrentMux.HandleFunc("GET /chunk", handlers.DownloadChunk)
 	mux.Handle("/gorrent/", http.StripPrefix("/gorrent", gorrentMux))
 	appliedMiddlewareRouter := middleware.LoggingMiddleware(mux)
 

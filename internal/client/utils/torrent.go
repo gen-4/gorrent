@@ -18,7 +18,7 @@ const (
 	READ_WRITE      = "read_write"
 )
 
-func OpenTorrentsFile(mode mode) (*os.File, error) {
+func OpenFile(mode mode, path string) (*os.File, error) {
 	var flags int
 	var permissions fs.FileMode
 
@@ -35,7 +35,7 @@ func OpenTorrentsFile(mode mode) (*os.File, error) {
 		return nil, errors.New("Invalid file mode provided")
 	}
 
-	f, err := os.OpenFile("torrents.json", flags, permissions)
+	f, err := os.OpenFile(path, flags, permissions)
 	if err != nil {
 		slog.Error("Error opening torrents file", "error", err.Error())
 	}
@@ -46,7 +46,8 @@ func GetTorrentsData() []models.Torrent {
 	var torrents []models.Torrent = []models.Torrent{}
 	torrentsData := map[string]any{}
 
-	f, _ := OpenTorrentsFile(READ)
+	f, _ := OpenFile(READ, "torrents.json")
+	defer f.Close()
 	stat, err := f.Stat()
 	if err != nil {
 		slog.Error("Error reading torrents file stats", "error", err.Error())
