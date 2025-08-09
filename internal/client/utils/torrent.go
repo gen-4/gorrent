@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -16,6 +17,7 @@ type mode string
 const (
 	READ       mode = "read"
 	READ_WRITE      = "read_write"
+	WRITE           = "write"
 )
 
 func OpenFile(mode mode, path string) (*os.File, error) {
@@ -30,6 +32,10 @@ func OpenFile(mode mode, path string) (*os.File, error) {
 		flags = os.O_RDWR | os.O_CREATE
 		permissions = 0600
 
+	} else if mode == WRITE {
+		flags = os.O_WRONLY | os.O_CREATE
+		permissions = 0600
+
 	} else {
 		slog.Error("Invalid file mode provided")
 		return nil, errors.New("Invalid file mode provided")
@@ -40,6 +46,28 @@ func OpenFile(mode mode, path string) (*os.File, error) {
 		slog.Error("Error opening torrents file", "error", err.Error())
 	}
 	return f, err
+}
+
+func CalculateChunksNumber(length uint64, chunkLength uint64) uint8 {
+	chunks := length / chunkLength
+	if length%chunkLength != 0 {
+		chunks += 1
+	}
+
+	return uint8(chunks)
+}
+
+func CalculateTorrentProgress(chunksDownloaded []uint8, chunkLength uint64) uint8 {
+	return uint8(len(chunksDownloaded) * int(chunkLength))
+}
+
+func CalculateTorrentStatus(length uint64, chunkLength uint64, chunksDownloaded []uint8, defaultMode models.Status) models.Status {
+	chunks := CalculateChunksNumber(length, chunkLength)
+	if len(chunksDownloaded) == int(chunks) {
+		return models.DOWNLOADED
+	}
+
+	return defaultMode
 }
 
 func GetTorrentsData() []models.Torrent {
@@ -73,6 +101,10 @@ func GetTorrentsData() []models.Torrent {
 		var chunksDownloaded []uint8 = []uint8{}
 		var downloadDir string = "~/Downloads/"
 
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			downloadDir = fmt.Sprintf("%s%s", homeDir, "Downloads/")
+		}
+
 		tData := torrentData.(map[string]any)
 		if v, found := tData["download_directory"]; found {
 			downloadDir = v.(string)
@@ -93,16 +125,12 @@ func GetTorrentsData() []models.Torrent {
 			length = uint64(v.(float64))
 		}
 
-		chunks := length / chunkLength
-		if length%chunkLength != 0 {
-			chunks += 1
-		}
-		if len(chunksDownloaded) == int(chunks) {
-			status = models.DOWNLOADED
-		}
+		status = CalculateTorrentStatus(length, chunkLength, chunksDownloaded, models.STOPPED)
+
+		progress = CalculateTorrentProgress(chunksDownloaded, chunkLength)
 
 		torrents = append(torrents, models.Torrent{
-			Name:             file,
+			File:             file,
 			Peers:            peers,
 			Progress:         progress,
 			Status:           status,

@@ -2,8 +2,8 @@ package commands
 
 import tea "github.com/charmbracelet/bubbletea"
 
-func SendMessageCmd(torrent any) tea.Cmd {
+func SendMessageCmd(msg any) tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
-		return torrent
+		return msg
 	})
 }

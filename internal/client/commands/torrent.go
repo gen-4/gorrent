@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -30,6 +31,11 @@ func calculateChunkLength(length uint64) uint64 {
 
 func CreateTorrent(path string) tea.Cmd {
 	return func() tea.Msg {
+		var downloadDir string = "~/Downloads/"
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			downloadDir = fmt.Sprintf("%s%s", homeDir, "Downloads/")
+		}
+
 		f, err := utils.OpenFile(utils.READ_WRITE, "torrents.json")
 		if err != nil {
 			return err
@@ -82,7 +88,7 @@ func CreateTorrent(path string) tea.Cmd {
 
 		tData := map[string]any{
 			file: map[string]any{
-				"download_directory": "~/Downloads/",
+				"download_directory": downloadDir,
 				"length":             length,
 				"chunk_length":       chunkLength,
 				"chunks_downloaded":  []int{},
@@ -105,7 +111,7 @@ func CreateTorrent(path string) tea.Cmd {
 		}
 
 		return models.NewTorrentRequest{
-			Name:             file,
+			File:             file,
 			Peers:            uint8(0),
 			Progress:         uint8(0),
 			Status:           models.STOPPED,
@@ -113,7 +119,7 @@ func CreateTorrent(path string) tea.Cmd {
 			ChunkLength:      chunkLength,
 			ChunksDownloaded: []uint8{},
 			Length:           length,
-			DownloadDir:      "~/Downloads/",
+			DownloadDir:      downloadDir,
 		}
 	}
 }
