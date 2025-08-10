@@ -97,7 +97,7 @@ func Config() {
 		}))
 		slog.SetDefault(logger)
 		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "8000", "%s")
-		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "5050", "%s")
+		Configuration.PeerUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "5050", "%s")
 
 	case TEST:
 		logger := slog.New(slog.NewJSONHandler(fileDescriptor, &slog.HandlerOptions{
@@ -105,13 +105,13 @@ func Config() {
 		}))
 		slog.SetDefault(logger)
 		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "8000", "%s")
-		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "5050", "%s")
+		Configuration.PeerUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "5050", "%s")
 
 	case PRO:
 		logger := slog.New(slog.NewJSONHandler(fileDescriptor, nil))
 		slog.SetDefault(logger)
 		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "80", "%s")
-		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "5050", "%s")
+		Configuration.PeerUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "5050", "%s")
 	}
 
 	Configuration.Torrents = utils.GetTorrentsData()

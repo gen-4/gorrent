@@ -29,12 +29,12 @@ type peer struct {
 	cancel context.CancelFunc
 }
 
-func getPeersWithFile(torrentFile string) []string {
+func getPeersWithFile(torrentFile string, superservers []string) []string {
 	peers := []string{}
 	var peersRes models.GetPeersDto
 	var data []byte
 
-	for _, ss := range config.Configuration.Superservers {
+	for _, ss := range superservers {
 		response, err := http.Get(fmt.Sprintf(config.Configuration.SuperserverUrlTemplate, ss, fmt.Sprintf("torrent/?file=%s", torrentFile)))
 		if err != nil {
 			slog.Error("Error asking for torrent", "superserver", ss, "torrent", torrentFile)
@@ -168,7 +168,7 @@ func DownloadTorrent(torrent *models.Torrent, ch chan<- models.Torrent) {
 	// TODO: Add context to finalize process
 	var wg *sync.WaitGroup
 	var resp response
-	peerAddrs := getPeersWithFile(torrent.File)
+	peerAddrs := getPeersWithFile(torrent.File, torrent.Superservers)
 	peers := []peer{}
 	responses := make(chan response, 5)
 	done := false
@@ -224,6 +224,7 @@ func DownloadTorrent(torrent *models.Torrent, ch chan<- models.Torrent) {
 
 		targetPeer.orders <- order(nextChunk)
 		nextChunk = getNextChunk(*torrent, chunks)
+		utils.UpdateTorrent(*torrent)
 		ch <- *torrent
 	}
 

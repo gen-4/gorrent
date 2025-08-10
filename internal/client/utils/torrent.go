@@ -112,6 +112,10 @@ func GetTorrentsData() []models.Torrent {
 		if v, found := tData["chunk_length"]; found {
 			chunkLength = uint64(v.(float64))
 		}
+		if v, found := tData["superservers"]; found {
+			superservers = v.([]string)
+		}
+
 		if v, found := tData["chunks_downloaded"]; found {
 			cDownloadedAny, ok := v.([]any)
 			if !ok {
@@ -143,4 +147,71 @@ func GetTorrentsData() []models.Torrent {
 	}
 
 	return torrents
+}
+
+func UpdateTorrent(torrent models.Torrent) error {
+	f, err := OpenFile(READ_WRITE, "torrents.json")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		slog.Error("Error reading torrents file stats", "error", err.Error())
+		return err
+	}
+	isTorrentsFileEmpty := stat.Size() == 0
+
+	torrentsData := map[string]any{}
+	if !isTorrentsFileEmpty {
+		jsonData := make([]byte, stat.Size())
+		_, err := f.Read(jsonData)
+		if err != nil {
+			slog.Error("Error reading torrents file", "error", err.Error())
+			return err
+		}
+		if err := json.Unmarshal(jsonData, &torrentsData); err != nil {
+			slog.Error("Error unmarshaling torrents file", "error", err.Error())
+			return err
+		}
+	}
+
+	if _, found := torrentsData[torrent.File]; !found {
+		slog.Warn("Torrent not found")
+		return errors.New("Torrent not found in torrents.json file")
+	}
+
+	cDownloaded := []int{}
+	for _, c := range torrent.ChunksDownloaded {
+		cDownloaded = append(cDownloaded, int(c))
+	}
+
+	torrentsData[torrent.File] = map[string]any{
+		"superservers":       torrent.Superservers,
+		"download_directory": torrent.DownloadDir,
+		"length":             torrent.Length,
+		"chunk_length":       torrent.ChunkLength,
+		"chunks_downloaded":  cDownloaded,
+	}
+	torrentsByteData, err := json.Marshal(torrentsData)
+	if err != nil {
+		slog.Error("Error marshalling torrents.json")
+		return err
+	}
+
+	if err := f.Truncate(0); err != nil {
+		slog.Error("Error truncating torrents.json")
+		return err
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		slog.Error("Error seeking start of file")
+		return err
+	}
+	if _, err := f.Write(torrentsByteData); err != nil {
+		slog.Error("Error Rewriting torrents.json file")
+		return err
+	}
+
+	return nil
 }

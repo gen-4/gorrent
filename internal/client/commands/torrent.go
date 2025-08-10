@@ -88,6 +88,7 @@ func CreateTorrent(path string) tea.Cmd {
 
 		tData := map[string]any{
 			file: map[string]any{
+				"superservers":       superservers,
 				"download_directory": downloadDir,
 				"length":             length,
 				"chunk_length":       chunkLength,

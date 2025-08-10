@@ -17,7 +17,7 @@ func HasTorrent(w http.ResponseWriter, req *http.Request) {
 	file := req.URL.Query().Get("file")
 
 	for _, torrent := range config.Configuration.Torrents {
-		if torrent.Name == file {
+		if torrent.File == file {
 			if _, err := os.Stat(fmt.Sprintf("%s%s", torrent.DownloadDir, file)); err != nil {
 				slog.Error("File not found", "error", err.Error())
 				break
@@ -40,7 +40,7 @@ func DownloadChunk(w http.ResponseWriter, req *http.Request) {
 	found := false
 
 	for _, torrent := range config.Configuration.Torrents {
-		if torrent.Name == file {
+		if torrent.File == file {
 			path = fmt.Sprintf("%s%s", torrent.DownloadDir, file)
 			if _, err := os.Stat(path); err != nil {
 				slog.Error("File not found", "error", err.Error())
