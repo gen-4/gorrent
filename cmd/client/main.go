@@ -11,15 +11,26 @@ import (
 	"github.com/gen-4/gorrent/config/client"
 	"github.com/gen-4/gorrent/internal/client/handlers"
 	"github.com/gen-4/gorrent/internal/client/ui"
+	"github.com/gen-4/gorrent/internal/client/utils"
 	"github.com/gen-4/gorrent/internal/middleware"
 )
 
 func main() {
+	host := "localhost"
 	config.Config()
 	defer config.CloseConfig()
 
+	if config.Configuration.Env == config.PRO {
+		upnpCtx := context.Background()
+		if client, err := utils.PickRouterClient(upnpCtx); err == nil {
+			host = string(client.LocalAddr())
+		}
+		if err := utils.GetIPAndForwardPort(upnpCtx); err != nil {
+			slog.Error("Failed forwarding upnp port", "error", err.Error())
+		}
+	}
+
 	for _, ss := range config.Configuration.Superservers {
-		// TODO: Port will have to be set according to environment
 		if _, err := http.Post(fmt.Sprintf(config.Configuration.SuperserverUrlTemplate, ss, "peer/"), "", nil); err != nil {
 			slog.Error("Error subscribing to superserver", "superserver", ss, "error", err.Error())
 		}
@@ -31,11 +42,13 @@ func main() {
 	gorrentMux.HandleFunc("/healthcheck", func(w http.ResponseWriter, req *http.Request) { fmt.Print("hehe\n") })
 	gorrentMux.HandleFunc("GET /torrent/", handlers.HasTorrent)
 	gorrentMux.HandleFunc("GET /torrent", handlers.HasTorrent)
+	gorrentMux.HandleFunc("GET /chunk/", handlers.DownloadChunk)
+	gorrentMux.HandleFunc("GET /chunk", handlers.DownloadChunk)
 	mux.Handle("/gorrent/", http.StripPrefix("/gorrent", gorrentMux))
 	appliedMiddlewareRouter := middleware.LoggingMiddleware(mux)
 
 	server := &http.Server{
-		Addr:    "localhost:5050",
+		Addr:    fmt.Sprintf("%s:5050", host),
 		Handler: appliedMiddlewareRouter,
 	}
 

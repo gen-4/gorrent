@@ -25,6 +25,7 @@ type ClientConfig struct {
 	Superservers           []string `json:"superservers"`
 	Env                    string
 	SuperserverUrlTemplate string
+	PeerUrlTemplate        string
 	Torrents               []models.Torrent
 }
 
@@ -33,6 +34,7 @@ var Configuration ClientConfig = ClientConfig{
 	Superservers:           []string{},
 	Env:                    "",
 	SuperserverUrlTemplate: "%s://%s:%s/gorrent/%s",
+	PeerUrlTemplate:        "%s://%s:%s/gorrent/%s",
 	Torrents:               []models.Torrent{},
 }
 
@@ -95,6 +97,7 @@ func Config() {
 		}))
 		slog.SetDefault(logger)
 		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "8000", "%s")
+		Configuration.PeerUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "5050", "%s")
 
 	case TEST:
 		logger := slog.New(slog.NewJSONHandler(fileDescriptor, &slog.HandlerOptions{
@@ -102,11 +105,13 @@ func Config() {
 		}))
 		slog.SetDefault(logger)
 		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "8000", "%s")
+		Configuration.PeerUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "5050", "%s")
 
 	case PRO:
 		logger := slog.New(slog.NewJSONHandler(fileDescriptor, nil))
 		slog.SetDefault(logger)
 		Configuration.SuperserverUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "80", "%s")
+		Configuration.PeerUrlTemplate = fmt.Sprintf(Configuration.SuperserverUrlTemplate, "http", "%s", "5050", "%s")
 	}
 
 	Configuration.Torrents = utils.GetTorrentsData()

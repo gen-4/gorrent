@@ -10,7 +10,7 @@ const (
 )
 
 type Torrent struct {
-	Name             string
+	File             string
 	Peers            uint8
 	Progress         uint8
 	Status           Status

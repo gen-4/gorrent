@@ -16,6 +16,7 @@ import (
 	"github.com/gen-4/gorrent/config/client"
 	"github.com/gen-4/gorrent/internal/client/commands"
 	"github.com/gen-4/gorrent/internal/client/models"
+	"github.com/gen-4/gorrent/internal/client/sharing"
 )
 
 type TorrentsKeyMap struct {
@@ -93,13 +94,14 @@ type Torrents struct {
 	keys       TorrentsKeyMap
 	torrents   []models.Torrent
 	table      table.Model
+	ch         chan models.Torrent
 }
 
 func updateTableRows(t *Torrents) {
 	rows := []table.Row{}
 	for _, torrentRow := range t.torrents {
 		rows = append(rows, table.Row{
-			torrentRow.Name,
+			torrentRow.File,
 			string(torrentRow.Status),
 			strconv.Itoa(int(torrentRow.Peers)),
 			fmt.Sprintf("%d%%", torrentRow.Progress),
@@ -111,7 +113,7 @@ func updateTableRows(t *Torrents) {
 func TorrentsInitialModel() Torrents {
 	var err error
 	tableHeaders := []table.Column{
-		{Title: "Name", Width: 40},
+		{Title: "File", Width: 40},
 		{Title: "Status", Width: 12},
 		{Title: "Peers", Width: 5},
 		{Title: "Progress", Width: 15},
@@ -144,8 +146,13 @@ func TorrentsInitialModel() Torrents {
 		err:        nil,
 		torrents:   torrents,
 		table:      torrentsTable,
+		ch:         make(chan models.Torrent, 10),
 	}
 	updateTableRows(&model)
+
+	for i, _ := range model.torrents {
+		sharing.DownloadTorrent(&model.torrents[i], model.ch)
+	}
 
 	return model
 }
@@ -157,6 +164,7 @@ func (t Torrents) Init() tea.Cmd {
 func (t Torrents) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
+	var torrentUpdate models.Torrent
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -179,11 +187,22 @@ func (t Torrents) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case models.NewTorrentRequest:
 		t.torrents = append(t.torrents, models.Torrent(msg))
 		updateTableRows(&t)
+		sharing.DownloadTorrent(&t.torrents[len(t.torrents)-1], t.ch)
+
+	case models.TorrentUpdate:
+		updateTableRows(&t)
 
 	case error:
 		slog.Error("Error in torrents view", "error", msg.Error())
 		t.err = msg
 		return t, nil
+	}
+
+	select {
+	case torrentUpdate = <-t.ch:
+		cmds = append(cmds, commands.SendMessageCmd(models.TorrentUpdate(torrentUpdate)))
+
+	default:
 	}
 
 	if t.picking {

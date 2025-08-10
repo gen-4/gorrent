@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -16,9 +17,10 @@ type mode string
 const (
 	READ       mode = "read"
 	READ_WRITE      = "read_write"
+	WRITE           = "write"
 )
 
-func OpenTorrentsFile(mode mode) (*os.File, error) {
+func OpenFile(mode mode, path string) (*os.File, error) {
 	var flags int
 	var permissions fs.FileMode
 
@@ -30,23 +32,50 @@ func OpenTorrentsFile(mode mode) (*os.File, error) {
 		flags = os.O_RDWR | os.O_CREATE
 		permissions = 0600
 
+	} else if mode == WRITE {
+		flags = os.O_WRONLY | os.O_CREATE
+		permissions = 0600
+
 	} else {
 		slog.Error("Invalid file mode provided")
 		return nil, errors.New("Invalid file mode provided")
 	}
 
-	f, err := os.OpenFile("torrents.json", flags, permissions)
+	f, err := os.OpenFile(path, flags, permissions)
 	if err != nil {
 		slog.Error("Error opening torrents file", "error", err.Error())
 	}
 	return f, err
 }
 
+func CalculateChunksNumber(length uint64, chunkLength uint64) uint8 {
+	chunks := length / chunkLength
+	if length%chunkLength != 0 {
+		chunks += 1
+	}
+
+	return uint8(chunks)
+}
+
+func CalculateTorrentProgress(chunksDownloaded []uint8, chunkLength uint64) uint8 {
+	return uint8(len(chunksDownloaded) * int(chunkLength))
+}
+
+func CalculateTorrentStatus(length uint64, chunkLength uint64, chunksDownloaded []uint8, defaultMode models.Status) models.Status {
+	chunks := CalculateChunksNumber(length, chunkLength)
+	if len(chunksDownloaded) == int(chunks) {
+		return models.DOWNLOADED
+	}
+
+	return defaultMode
+}
+
 func GetTorrentsData() []models.Torrent {
 	var torrents []models.Torrent = []models.Torrent{}
 	torrentsData := map[string]any{}
 
-	f, _ := OpenTorrentsFile(READ)
+	f, _ := OpenFile(READ, "torrents.json")
+	defer f.Close()
 	stat, err := f.Stat()
 	if err != nil {
 		slog.Error("Error reading torrents file stats", "error", err.Error())
@@ -72,6 +101,10 @@ func GetTorrentsData() []models.Torrent {
 		var chunksDownloaded []uint8 = []uint8{}
 		var downloadDir string = "~/Downloads/"
 
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			downloadDir = fmt.Sprintf("%s%s", homeDir, "Downloads/")
+		}
+
 		tData := torrentData.(map[string]any)
 		if v, found := tData["download_directory"]; found {
 			downloadDir = v.(string)
@@ -79,6 +112,10 @@ func GetTorrentsData() []models.Torrent {
 		if v, found := tData["chunk_length"]; found {
 			chunkLength = uint64(v.(float64))
 		}
+		if v, found := tData["superservers"]; found {
+			superservers = v.([]string)
+		}
+
 		if v, found := tData["chunks_downloaded"]; found {
 			cDownloadedAny, ok := v.([]any)
 			if !ok {
@@ -92,16 +129,12 @@ func GetTorrentsData() []models.Torrent {
 			length = uint64(v.(float64))
 		}
 
-		chunks := length / chunkLength
-		if length%chunkLength != 0 {
-			chunks += 1
-		}
-		if len(chunksDownloaded) == int(chunks) {
-			status = models.DOWNLOADED
-		}
+		status = CalculateTorrentStatus(length, chunkLength, chunksDownloaded, models.STOPPED)
+
+		progress = CalculateTorrentProgress(chunksDownloaded, chunkLength)
 
 		torrents = append(torrents, models.Torrent{
-			Name:             file,
+			File:             file,
 			Peers:            peers,
 			Progress:         progress,
 			Status:           status,
@@ -114,4 +147,71 @@ func GetTorrentsData() []models.Torrent {
 	}
 
 	return torrents
+}
+
+func UpdateTorrent(torrent models.Torrent) error {
+	f, err := OpenFile(READ_WRITE, "torrents.json")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		slog.Error("Error reading torrents file stats", "error", err.Error())
+		return err
+	}
+	isTorrentsFileEmpty := stat.Size() == 0
+
+	torrentsData := map[string]any{}
+	if !isTorrentsFileEmpty {
+		jsonData := make([]byte, stat.Size())
+		_, err := f.Read(jsonData)
+		if err != nil {
+			slog.Error("Error reading torrents file", "error", err.Error())
+			return err
+		}
+		if err := json.Unmarshal(jsonData, &torrentsData); err != nil {
+			slog.Error("Error unmarshaling torrents file", "error", err.Error())
+			return err
+		}
+	}
+
+	if _, found := torrentsData[torrent.File]; !found {
+		slog.Warn("Torrent not found")
+		return errors.New("Torrent not found in torrents.json file")
+	}
+
+	cDownloaded := []int{}
+	for _, c := range torrent.ChunksDownloaded {
+		cDownloaded = append(cDownloaded, int(c))
+	}
+
+	torrentsData[torrent.File] = map[string]any{
+		"superservers":       torrent.Superservers,
+		"download_directory": torrent.DownloadDir,
+		"length":             torrent.Length,
+		"chunk_length":       torrent.ChunkLength,
+		"chunks_downloaded":  cDownloaded,
+	}
+	torrentsByteData, err := json.Marshal(torrentsData)
+	if err != nil {
+		slog.Error("Error marshalling torrents.json")
+		return err
+	}
+
+	if err := f.Truncate(0); err != nil {
+		slog.Error("Error truncating torrents.json")
+		return err
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		slog.Error("Error seeking start of file")
+		return err
+	}
+	if _, err := f.Write(torrentsByteData); err != nil {
+		slog.Error("Error Rewriting torrents.json file")
+		return err
+	}
+
+	return nil
 }
