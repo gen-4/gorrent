@@ -3,7 +3,11 @@ FROM debian:latest
 
 RUN mkdir /gorrent
 WORKDIR /gorrent
-COPY . .
+COPY cmd/ .
+COPY go.mod .
+COPY internal/ .
+COPY config/ .
+COPY go.sum .
 
 RUN mkdir /data
 RUN mkdir /var/log/gorrent
@@ -11,7 +15,7 @@ RUN apt update
 RUN apt-get update -y && apt-get install ca-certificates -y
 RUN apt install golang-go -y
 RUN go build cmd/superserver/main.go
-RUN rm -rf cmd/  config/  data/  Dockerfile  go.mod  gorrent_conf.json  gorrent.log  go.sum  internal/  LICENSE  README.md  server.log  test/ .git/ .env .gitignore .github/
+RUN rm -rf cmd/  config/  go.mod  go.sum  internal/
 
 ENTRYPOINT ["./main"]
 

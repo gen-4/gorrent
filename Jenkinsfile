@@ -9,7 +9,10 @@ node {
 
 	stage('Build image') {
 		echo 'Building image...'
-		app = docker.build("gorrent_image:latest")
+		System.setProperty("org.jenkinsci.plugins.durabletask.BourneShellScript.HEARTBEAT_CHECK_INTERVAL", "600000")
+		retry(3) {
+			app = docker.build("gorrent_image:latest")
+		}
 		echo 'Image built'
 	}
 
