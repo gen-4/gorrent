@@ -13,7 +13,7 @@ node {
 		echo 'Image built'
 	}
 
-	stage('Deploy gorrent superserver') {
+	stage('Deploying gorrent superserver') {
 		
 	}
 }
