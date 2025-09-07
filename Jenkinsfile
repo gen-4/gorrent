@@ -9,7 +9,7 @@ node {
 
 	stage('Build image') {
 		echo 'Building image...'
-		app = docker.build("gorrent_image/latest")
+		app = docker.build("gorrent_image:latest")
 		echo 'Image built'
 	}
 
