@@ -1,3 +1,3 @@
 # Gorrent
 
-Custom version of torrent the software.
+Custom version of torrent the software
