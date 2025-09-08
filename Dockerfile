@@ -2,8 +2,8 @@ FROM debian:latest
 
 
 RUN mkdir /gorrent
+COPY cmd go.mod internal config  go.sum /gorrent/
 WORKDIR /gorrent
-COPY cmd go.mod internal config  go.sum ./
 
 RUN mkdir /data
 RUN mkdir /var/log/gorrent
