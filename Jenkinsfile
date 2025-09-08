@@ -5,9 +5,6 @@ node {
 		echo 'Cloning repository...'
 		checkout scm
 		echo 'Repository cloned'
-		sh 'ls -la'
-		sh 'ls -la cmd/'
-		sh 'ls -la cmd/superserver/'
 	}
 
 	stage('Build image') {
