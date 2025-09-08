@@ -10,7 +10,6 @@ node {
 	stage('Build image') {
 		echo 'Building image...'
 		ls -a
-		ls -a cmd
 		retry(3) {
 			app = docker.build("gorrent_image:latest")
 		}
