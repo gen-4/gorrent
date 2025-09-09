@@ -2,7 +2,7 @@ node {
 	def app
 
 	script {
-		System.setProperty("org.jenkinsci.plugins.durabletask.BourneShellScript.HEARTBEAT_CHECK_INTERVAL", "10000")
+		System.setProperty("org.jenkinsci.plugins.durabletask.BourneShellScript.HEARTBEAT_CHECK_INTERVAL", "86400")
 	}
 
 	stage('Clone repository') {
