@@ -40,7 +40,7 @@ func main() {
 	appliedMiddlewareRouter := middleware.LoggingMiddleware(mux)
 
 	slog.Info("Starting HTTP server")
-	err := http.ListenAndServe("localhost:8000", appliedMiddlewareRouter)
+	err := http.ListenAndServe("0.0.0.0:8000", appliedMiddlewareRouter)
 	if errors.Is(err, http.ErrServerClosed) {
 		fmt.Print("Server closed\n")
 	} else if err != nil {
