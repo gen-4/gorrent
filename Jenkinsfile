@@ -20,6 +20,9 @@ node {
 	}
 
 	stage('Deploying gorrent superserver...') {
-		
+		dir('/home/hera/proxy/') {
+			sh 'docker compose down'
+			sh 'docker compose up -d'
+		}	
 	}
 }
